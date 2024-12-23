@@ -22,7 +22,8 @@ const client = new MongoClient(uri, {
   }
 });
 
-const volunteerPosts = client.db("volunteerAllPosts").collection("allPost")
+const volunteerPosts = client.db("volunteerAllPosts").collection("allPost");
+const volunteerBid = client.db("volunteerAllPosts").collection("allBids");
 
 async function run() {
   try {
@@ -43,6 +44,13 @@ app.get('/sortPost/:id',async(req,res)=>{
 })
 
 
+app.get('/addBid/:email',async(req,res)=>{
+    const email=req.params.email
+    const query={volunteerEmail : email}
+    const result = await volunteerBid.find(query).toArray()
+    res.send(result)
+})
+
 app.get('/allJob/:email',async(req,res)=>{
     const email=req.params.email
     const query={userEmail : email}
@@ -55,6 +63,32 @@ app.post('/addPost' ,async(req,res)=>{
     const post = req.body
     const result = await volunteerPosts.insertOne(post)
     res.send(result)
+})
+
+app.post('/addBid' ,async(req,res)=>{
+  const post = req.body
+  const result = await volunteerBid.insertOne(post)
+
+  const filter ={_id:new ObjectId(post.requestId)}
+  const updated={
+    $inc:{need : -1}
+  }
+  const updateBidCount = await volunteerPosts.updateOne(filter,updated)
+  res.send(result)
+})
+
+
+
+app.put('/update/:id',async(req,res)=>{
+  const id =req.params.id
+  const updateData = req.body
+  const query={_id :new ObjectId(id)}
+  const updated={
+    $set: updateData
+  }
+  const options ={upsert : true}
+  const result =await volunteerPosts.updateOne(query,updated,options)
+  res.send(result)
 })
 
 app.delete('/allPost/:id',async(req,res)=>{
