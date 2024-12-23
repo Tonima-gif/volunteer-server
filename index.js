@@ -31,7 +31,16 @@ async function run() {
     await client.connect();
 
 app.get('/sortPost',async(req,res)=>{
-    const result = await volunteerPosts.find().toArray()
+  const search =req.query.search
+  let query ={}
+  if(search)query={title:{$regex:search, $options:'i'}}
+    const result = await volunteerPosts.find(query).toArray()
+    res.send(result)
+})
+app.get('/sort',async(req,res)=>{
+ const sortData=volunteerPosts.find().sort({deadline:1})
+
+    const result = await sortData.toArray()
     res.send(result)
 })
 
@@ -95,6 +104,13 @@ app.delete('/allPost/:id',async(req,res)=>{
   const id =req.params.id
   const query={_id :new ObjectId(id)}
   const result =await volunteerPosts.deleteOne(query)
+  res.send(result)
+})
+
+app.delete('/bidDelete/:id',async(req,res)=>{
+  const id =req.params.id
+  const query={_id :new ObjectId(id)}
+  const result =await volunteerBid.deleteOne(query)
   res.send(result)
 })
 
