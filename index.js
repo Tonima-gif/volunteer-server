@@ -2,13 +2,21 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 require('dotenv').config()
+const jwt =require('jsonwebtoken')
+const cookieParser=require('cookie-parser')
 const port = process.env.PORT || 5000 ;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
+const corsOptions ={
+  origin:['http://localhost:5173'],
+  credentials:true,
+  optionalSuccessStatus:200
+}
 
-app.use(cors())
+
+app.use(cors(corsOptions))
 app.use(express.json())
-
+app.use(cookieParser())
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.v4o8q.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -22,13 +30,46 @@ const client = new MongoClient(uri, {
   }
 });
 
-const volunteerPosts = client.db("volunteerAllPosts").collection("allPost");
-const volunteerBid = client.db("volunteerAllPosts").collection("allBids");
+const verifyToken=(req,res,next)=>{
+const token=req.cookies?.token
+if(!token)return res.status(401).send({message:"unauthorized access"})
+  jwt.verify(token,process.env.PRIVATE_KEY,(err,decoded)=>{
+    if(err){
+      return res.status(401).send({message:"unauthorized access"})}
+req.user=decoded
+  })
+next()
+}
+
+
 
 async function run() {
   try {
    
-    await client.connect();
+    const volunteerPosts = client.db("volunteerAllPosts").collection("allPost");
+const volunteerBid = client.db("volunteerAllPosts").collection("allBids");
+
+
+// generate token
+
+app.post('/jwt',(req,res)=>{
+  const email=req.body
+ const token= jwt.sign(email,process.env.PRIVATE_KEY,{expiresIn:'365d'})
+  res.cookie('token',token ,{
+    httpOnly:true,
+    secure:process.env.NODE_ENV ==='production',
+    sameSite:process.env.NODE_ENV==='production'?'none':'strict',
+  }).send({success:true})
+})
+
+// remove token
+app.get('/remove',(req,res)=>{
+  res.clearCookie("token",{
+    maxAge:0,
+    secure:process.env.NODE_ENV ==='production',
+    sameSite:process.env.NODE_ENV==='production'?'none':'strict',
+  }).send({success:true})
+})
 
 app.get('/sortPost',async(req,res)=>{
   const search =req.query.search
@@ -37,13 +78,13 @@ app.get('/sortPost',async(req,res)=>{
     const result = await volunteerPosts.find(query).toArray()
     res.send(result)
 })
+
 app.get('/sort',async(req,res)=>{
  const sortData=volunteerPosts.find().sort({deadline:1})
 
     const result = await sortData.toArray()
     res.send(result)
 })
-
 
 app.get('/sortPost/:id',async(req,res)=>{
     const id =req.params.id
@@ -52,21 +93,23 @@ app.get('/sortPost/:id',async(req,res)=>{
     res.send(result)
 })
 
-
-app.get('/addBid/:email',async(req,res)=>{
+app.get('/addBid/:email',verifyToken, async(req,res)=>{
+  const decodedEmail=req.user?.email
     const email=req.params.email
+    if(decodedEmail !==email) return res.status(401).send({message:"unauthorized access token"})
     const query={volunteerEmail : email}
     const result = await volunteerBid.find(query).toArray()
     res.send(result)
 })
 
-app.get('/allJob/:email',async(req,res)=>{
+app.get('/allJob/:email',verifyToken, async(req,res)=>{
+  const decodedEmail=req.user?.email
     const email=req.params.email
+    if(decodedEmail !==email) return res.status(401).send({message:"unauthorized access token"})
     const query={userEmail : email}
     const result = await volunteerPosts.find(query).toArray()
     res.send(result)
 })
-
 
 app.post('/addPost' ,async(req,res)=>{
     const post = req.body
@@ -85,8 +128,6 @@ app.post('/addBid' ,async(req,res)=>{
   const updateBidCount = await volunteerPosts.updateOne(filter,updated)
   res.send(result)
 })
-
-
 
 app.put('/update/:id',async(req,res)=>{
   const id =req.params.id
