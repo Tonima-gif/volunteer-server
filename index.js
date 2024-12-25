@@ -1,14 +1,14 @@
+require('dotenv').config()
 const express = require('express');
 const cors = require('cors');
 const app = express();
-require('dotenv').config()
 const jwt =require('jsonwebtoken')
 const cookieParser=require('cookie-parser')
 const port = process.env.PORT || 5000 ;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const corsOptions ={
-  origin:['http://localhost:5173'],
+  origin:['https://sparkly-rolypoly-810eb2.netlify.app','http://localhost:5173'],
   credentials:true,
   optionalSuccessStatus:200
 }
@@ -32,10 +32,10 @@ const client = new MongoClient(uri, {
 
 const verifyToken=(req,res,next)=>{
 const token=req.cookies?.token
-if(!token)return res.status(401).send({message:"unauthorized access"})
+if(!token)return res.status(401).send({message:"unauthorized access token verify"})
   jwt.verify(token,process.env.PRIVATE_KEY,(err,decoded)=>{
     if(err){
-      return res.status(401).send({message:"unauthorized access"})}
+      return res.status(401).send({message:"unauthorized access verify"})}
 req.user=decoded
   })
 next()
@@ -111,7 +111,10 @@ app.get('/allJob/:email',verifyToken, async(req,res)=>{
     res.send(result)
 })
 
-app.post('/addPost' ,async(req,res)=>{
+app.post('/addPost' ,verifyToken,async(req,res)=>{
+  const decodedEmail=req.user?.email
+  const email=req.body.userEmail
+  if(decodedEmail !==email) return res.status(401).send({message:"unauthorized access token"})
     const post = req.body
     const result = await volunteerPosts.insertOne(post)
     res.send(result)
@@ -155,12 +158,8 @@ app.delete('/bidDelete/:id',async(req,res)=>{
   res.send(result)
 })
 
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
+
   }
 }
 run().catch(console.dir);
