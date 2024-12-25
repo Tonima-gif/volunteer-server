@@ -50,7 +50,7 @@ async function run() {
 const volunteerBid = client.db("volunteerAllPosts").collection("allBids");
 
 
-// generate token
+// generate token  jwt
 
 app.post('/jwt',(req,res)=>{
   const email=req.body
@@ -62,7 +62,7 @@ app.post('/jwt',(req,res)=>{
   }).send({success:true})
 })
 
-// remove token
+// remove token jwt
 app.get('/remove',(req,res)=>{
   res.clearCookie("token",{
     maxAge:0,
