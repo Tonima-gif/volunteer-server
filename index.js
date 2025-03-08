@@ -29,7 +29,7 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
-
+// verifyToken
 const verifyToken=(req,res,next)=>{
 const token=req.cookies?.token
 if(!token)return res.status(401).send({message:"unauthorized access token verify"})
